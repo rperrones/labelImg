@@ -1106,6 +1106,11 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.image_data = read(unicode_file_path, None)
                 self.label_file = None
                 self.canvas.verified = False
+                
+                if self.file_list_widget.count() == 0:
+                    item = QListWidgetItem(unicode_file_path)
+                    self.file_list_widget.addItem(item)
+                    self.m_img_list = [unicode_file_path]
 
             if isinstance(self.image_data, QImage):
                 image = self.image_data
@@ -1419,11 +1424,12 @@ class MainWindow(QMainWindow, WindowMixin):
             if isinstance(filename, (tuple, list)):
                 filename = filename[0]           
                 unicode_file_path = os.path.abspath(ustr(filename))
-                try:
-                    self.label_file = LabelFile()
-                    self.label_file.load_coco_file(unicode_file_path)
-                except Exception as e:
-                    self.error_message(u'Error trying to open and parse the file', u'<b>%s</b>' % e)
+                if unicode_file_path and os.path.exists(unicode_file_path):
+                    try:
+                        self.label_file = LabelFile()
+                        self.label_file.load_coco_file(unicode_file_path)
+                    except Exception as e:
+                        self.error_message(u'Error trying to open and parse the file', u'<b>%s</b>' % e)
                                     
 
                     
