@@ -15,12 +15,14 @@ from libs.create_ml_io import JSON_EXT
 from enum import Enum
 import os.path
 import sys
+from libs.coco_io import CocoWriter
 
 
 class LabelFileFormat(Enum):
     PASCAL_VOC = 1
     YOLO = 2
     CREATE_ML = 3
+    COCO = 4
 
 
 class LabelFileError(Exception):
@@ -148,7 +150,9 @@ class LabelFile(object):
     def is_label_file(filename):
         file_suffix = os.path.splitext(filename)[1].lower()
         return file_suffix == LabelFile.suffix
-
+        
+    
+        
     @staticmethod
     def convert_points_to_bnd_box(points):
         x_min = float('inf')
@@ -166,10 +170,19 @@ class LabelFile(object):
         # Martin Kersner, 2015/11/12
         # 0-valued coordinates of BB caused an error while
         # training faster-rcnn object detector.
-        if x_min < 1:
+        # ==============
+        '''if x_min < 1:
             x_min = 1
 
         if y_min < 1:
             y_min = 1
-
+        '''
         return int(x_min), int(y_min), int(x_max), int(y_max)
+
+    def load_coco_file(self, filename):
+        coco = CocoWriter(filename)
+        if coco.check_coco_basic_format():
+            pass
+        else:
+            raise ValueError('This file does not have a COCO basic format')
+        

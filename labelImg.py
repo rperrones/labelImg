@@ -50,6 +50,7 @@ from libs.create_ml_io import CreateMLReader
 from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
+import traceback
 
 __appname__ = 'labelImg'
 
@@ -214,6 +215,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
         open = action(get_str('openFile'), self.open_file,
                       'Ctrl+O', 'open', get_str('openFileDetail'))
+        
+        import_file = action(get_str('importFile'), self.import_file,
+                      'Ctrl+I', 'import JSON', get_str('importFileDetail'), enabled=False)
+        
 
         open_dir = action(get_str('openDir'), self.open_dir_dialog,
                           'Ctrl+u', 'open', get_str('openDir'))
@@ -247,6 +252,8 @@ class MainWindow(QMainWindow, WindowMixin):
                 return '&YOLO', 'format_yolo'
             elif format == LabelFileFormat.CREATE_ML:
                 return '&CreateML', 'format_createml'
+            elif format == LabelFileFormat.COCO:
+                return '&COCO', 'format_coco'            
 
         save_format = action(get_format_meta(self.label_file_format)[0],
                              self.change_format, 'Ctrl+',
@@ -371,7 +378,7 @@ class MainWindow(QMainWindow, WindowMixin):
                               advancedContext=(create_mode, edit_mode, edit, copy,
                                                delete, shape_line_color, shape_fill_color),
                               onLoadActive=(
-                                  close, create, create_mode, edit_mode),
+                                  close, create, create_mode, edit_mode, import_file),
                               onShapesPresent=(save_as, hide_all, show_all))
 
         self.menus = Struct(
@@ -400,7 +407,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.display_label_option.triggered.connect(self.toggle_paint_labels_option)
 
         add_actions(self.menus.file,
-                    (open, open_dir, change_save_dir, open_annotation, copy_prev_bounding, self.menus.recentFiles, save, save_format, save_as, close, reset_all, delete_image, quit))
+                    (open, import_file, open_dir, change_save_dir, open_annotation, copy_prev_bounding, self.menus.recentFiles, save, save_format, save_as, close, reset_all, delete_image, quit))
         add_actions(self.menus.help, (help_default, show_info, show_shortcut))
         add_actions(self.menus.view, (
             self.auto_saving,
@@ -421,11 +428,11 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.tools = self.toolbar('Tools')
         self.actions.beginner = (
-            open, open_dir, change_save_dir, open_next_image, open_prev_image, verify, save, save_format, None, create, copy, delete, None,
+            open, import_file, open_dir, change_save_dir, open_next_image, open_prev_image, verify, save, save_format, None, create, copy, delete, None,
             zoom_in, zoom, zoom_out, fit_window, fit_width)
 
         self.actions.advanced = (
-            open, open_dir, change_save_dir, open_next_image, open_prev_image, save, save_format, None,
+            open, import_file, open_dir, change_save_dir, open_next_image, open_prev_image, save, save_format, None,
             create_mode, edit_mode, None,
             hide_all, show_all)
 
@@ -537,7 +544,13 @@ class MainWindow(QMainWindow, WindowMixin):
             self.actions.save_format.setIcon(new_icon("format_createml"))
             self.label_file_format = LabelFileFormat.CREATE_ML
             LabelFile.suffix = JSON_EXT
-
+            
+        elif save_format == FORMAT_COCO:
+            self.actions.save_format.setText(FORMAT_COCO)
+            self.actions.save_format.setIcon(new_icon("format_coco"))
+            self.label_file_format = LabelFileFormat.COCO
+            LabelFile.suffix = JSON_EXT
+            
     def change_format(self):
         if self.label_file_format == LabelFileFormat.PASCAL_VOC:
             self.set_format(FORMAT_YOLO)
@@ -545,6 +558,8 @@ class MainWindow(QMainWindow, WindowMixin):
             self.set_format(FORMAT_CREATEML)
         elif self.label_file_format == LabelFileFormat.CREATE_ML:
             self.set_format(FORMAT_PASCALVOC)
+        elif self.label_file_format == LabelFileFormat.COCO:
+            self.set_format(FORMAT_COCO)
         else:
             raise ValueError('Unknown label file format.')
         self.set_dirty()
@@ -876,6 +891,11 @@ class MainWindow(QMainWindow, WindowMixin):
                     annotation_file_path += JSON_EXT
                 self.label_file.save_create_ml_format(annotation_file_path, shapes, self.file_path, self.image_data,
                                                       self.label_hist, self.line_color.getRgb(), self.fill_color.getRgb())
+            elif self.label_file_format == LabelFileFormat.COCO:
+                if annotation_file_path[-5:].lower() != ".json":
+                    annotation_file_path += JSON_EXT
+                #Add here a method to save Microsoft COCO json annotation
+                #self.label_file.save_coco_format()
             else:
                 self.label_file.save(annotation_file_path, shapes, self.file_path, self.image_data,
                                      self.line_color.getRgb(), self.fill_color.getRgb())
@@ -1388,6 +1408,25 @@ class MainWindow(QMainWindow, WindowMixin):
             self.cur_img_idx = 0
             self.img_count = 1
             self.load_file(filename)
+                    
+    def import_file(self):                 
+        if not self.may_continue():
+            return
+        path = os.path.dirname(ustr(self.file_path)) if self.file_path else '.'
+        filters = "Label file (*.json)"
+        filename = QFileDialog.getOpenFileName(self, '%s - Choose a label file' % __appname__, path, filters)
+        if filename:
+            if isinstance(filename, (tuple, list)):
+                filename = filename[0]           
+                unicode_file_path = os.path.abspath(ustr(filename))
+                try:
+                    self.label_file = LabelFile()
+                    self.label_file.load_coco_file(unicode_file_path)
+                except Exception as e:
+                    self.error_message(u'Error trying to open and parse the file', u'<b>%s</b>' % e)
+                                    
+
+                    
 
     def save_file(self, _value=False):
         if self.default_save_dir is not None and len(ustr(self.default_save_dir)):
