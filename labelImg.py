@@ -1074,16 +1074,6 @@ class MainWindow(QMainWindow, WindowMixin):
         # Fix bug: An  index error after select a directory when open a new file.
         unicode_file_path = ustr(file_path)
         unicode_file_path = os.path.abspath(unicode_file_path)
-        # Tzutalin 20160906 : Add file list and dock to move faster
-        # Highlight the file item
-        if unicode_file_path and self.file_list_widget.count() > 0:
-            if unicode_file_path in self.m_img_list:
-                index = self.m_img_list.index(unicode_file_path)
-                file_widget_item = self.file_list_widget.item(index)
-                file_widget_item.setSelected(True)
-            else:
-                self.file_list_widget.clear()
-                self.m_img_list.clear()
 
         if unicode_file_path and os.path.exists(unicode_file_path):
             if LabelFile.is_label_file(unicode_file_path):
@@ -1101,16 +1091,26 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.fill_color = QColor(*self.label_file.fillColor)
                 self.canvas.verified = self.label_file.verified
             else:
-                # Load image:
-                # read data first and store for saving into label file.
+                # Load one image an update the current list of all images already loaded.
                 self.image_data = read(unicode_file_path, None)
                 self.label_file = None
-                self.canvas.verified = False
-                
-                if self.file_list_widget.count() == 0:
+                self.canvas.verified = False            
+                if self.file_list_widget.count() == 0 or unicode_file_path not in self.m_img_list:
                     item = QListWidgetItem(unicode_file_path)
                     self.file_list_widget.addItem(item)
-                    self.m_img_list = [unicode_file_path]
+                    if isinstance(self.m_img_list, list):
+                        self.m_img_list.append(unicode_file_path)
+                    else:
+                        self.m_img_list = [unicode_file_path]
+                    self.cur_img_idx = self.m_img_list.index(unicode_file_path)
+                elif self.file_list_widget.count() > 0 and unicode_file_path in self.m_img_list:
+                    self.cur_img_idx = self.m_img_list.index(unicode_file_path)
+                self.img_count = len(self.m_img_list)                    
+                current_file_widget_item = self.file_list_widget.item(self.cur_img_idx)
+                current_file_widget_item.setSelected(True)
+                 
+               
+                    
 
             if isinstance(self.image_data, QImage):
                 image = self.image_data
