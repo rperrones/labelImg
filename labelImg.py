@@ -80,6 +80,8 @@ class MainWindow(QMainWindow, WindowMixin):
     def __init__(self, default_filename=None, default_prefdef_class_file=None, default_save_dir=None):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
+        
+        self.image_formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
 
         # Load setting in the main thread
         self.settings = Settings()
@@ -215,9 +217,6 @@ class MainWindow(QMainWindow, WindowMixin):
 
         open = action(get_str('openFile'), self.open_file,
                       'Ctrl+O', 'open', get_str('openFileDetail'))
-        
-        import_file = action(get_str('importFile'), self.import_file,
-                      'Ctrl+I', 'import JSON', get_str('importFileDetail'), enabled=False)
         
 
         open_dir = action(get_str('openDir'), self.open_dir_dialog,
@@ -378,7 +377,7 @@ class MainWindow(QMainWindow, WindowMixin):
                               advancedContext=(create_mode, edit_mode, edit, copy,
                                                delete, shape_line_color, shape_fill_color),
                               onLoadActive=(
-                                  close, create, create_mode, edit_mode, import_file),
+                                  close, create, create_mode, edit_mode),
                               onShapesPresent=(save_as, hide_all, show_all))
 
         self.menus = Struct(
@@ -407,7 +406,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.display_label_option.triggered.connect(self.toggle_paint_labels_option)
 
         add_actions(self.menus.file,
-                    (open, import_file, open_dir, change_save_dir, open_annotation, copy_prev_bounding, self.menus.recentFiles, save, save_format, save_as, close, reset_all, delete_image, quit))
+                    (open, open_dir, change_save_dir, open_annotation, copy_prev_bounding, self.menus.recentFiles, save, save_format, save_as, close, reset_all, delete_image, quit))
         add_actions(self.menus.help, (help_default, show_info, show_shortcut))
         add_actions(self.menus.view, (
             self.auto_saving,
@@ -428,11 +427,11 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.tools = self.toolbar('Tools')
         self.actions.beginner = (
-            open, import_file, open_dir, change_save_dir, open_next_image, open_prev_image, verify, save, save_format, None, create, copy, delete, None,
+            open, open_dir, change_save_dir, open_next_image, open_prev_image, verify, save, save_format, None, create, copy, delete, None,
             zoom_in, zoom, zoom_out, fit_window, fit_width)
 
         self.actions.advanced = (
-            open, import_file, open_dir, change_save_dir, open_next_image, open_prev_image, save, save_format, None,
+            open, open_dir, change_save_dir, open_next_image, open_prev_image, save, save_format, None,
             create_mode, edit_mode, None,
             hide_all, show_all)
 
@@ -1074,25 +1073,36 @@ class MainWindow(QMainWindow, WindowMixin):
         # Fix bug: An  index error after select a directory when open a new file.
         unicode_file_path = ustr(file_path)
         unicode_file_path = os.path.abspath(unicode_file_path)
+        
 
         if unicode_file_path and os.path.exists(unicode_file_path):
             if LabelFile.is_label_file(unicode_file_path):
                 try:
-                    self.label_file = LabelFile(unicode_file_path)
-                except LabelFileError as e:
+                    self.label_file = LabelFile()
+                    if self.label_file.is_json_file(unicode_file_path):
+                        self.label_file.load_json(unicode_file_path)
+                except Exception as e:
                     self.error_message(u'Error opening file',
                                        (u"<p><b>%s</b></p>"
                                         u"<p>Make sure <i>%s</i> is a valid label file.")
                                        % (e, unicode_file_path))
                     self.status("Error reading %s" % unicode_file_path)
                     return False
-                self.image_data = self.label_file.image_data
-                self.line_color = QColor(*self.label_file.lineColor)
-                self.fill_color = QColor(*self.label_file.fillColor)
-                self.canvas.verified = self.label_file.verified
+                if not self.image.isNull():
+                    self.line_color = QColor(*self.label_file.lineColor)
+                    self.fill_color = QColor(*self.label_file.fillColor)
+                    self.canvas.verified = self.label_file.verified
             else:
-                # Load one image an update the current list of all images already loaded.
-                self.image_data = read(unicode_file_path, None)
+                # Load one image and update the current list of all images already loaded.   
+                try:
+                    self.image = read(unicode_file_path, None)
+                except Exception as e:
+                    self.error_message(u'Error opening file',
+                                   u"<p>Make sure <i>%s</i> is a valid image file. %s" % (os.path.basename(unicode_file_path),e))
+                    self.status("Error reading %s" % unicode_file_path)
+                    return False 
+
+
                 self.label_file = None
                 self.canvas.verified = False            
                 if self.file_list_widget.count() == 0 or unicode_file_path not in self.m_img_list:
@@ -1108,44 +1118,30 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.img_count = len(self.m_img_list)                    
                 current_file_widget_item = self.file_list_widget.item(self.cur_img_idx)
                 current_file_widget_item.setSelected(True)
-                 
-               
-                    
-
-            if isinstance(self.image_data, QImage):
-                image = self.image_data
-            else:
-                image = QImage.fromData(self.image_data)
-            if image.isNull():
-                self.error_message(u'Error opening file',
-                                   u"<p>Make sure <i>%s</i> is a valid image file." % unicode_file_path)
-                self.status("Error reading %s" % unicode_file_path)
-                return False
-            self.status("Loaded %s" % os.path.basename(unicode_file_path))
-            self.image = image
-            self.file_path = unicode_file_path
-            self.canvas.load_pixmap(QPixmap.fromImage(image))
-            if self.label_file:
-                self.load_labels(self.label_file.shapes)
-            self.set_clean()
-            self.canvas.setEnabled(True)
-            self.adjust_scale(initial=True)
-            self.paint_canvas()
-            self.add_recent_file(self.file_path)
-            self.toggle_actions(True)
-            self.show_bounding_box_from_annotation_file(file_path)
-
-            counter = self.counter_str()
-            self.setWindowTitle(__appname__ + ' ' + file_path + ' ' + counter)
-
-            # Default : select last item if there is at least one item
-            if self.label_list.count():
-                self.label_list.setCurrentItem(self.label_list.item(self.label_list.count() - 1))
-                self.label_list.item(self.label_list.count() - 1).setSelected(True)
-
-            self.canvas.setFocus(True)
-            return True
-        return False
+                self.status("Loaded %s" % os.path.basename(unicode_file_path))
+                self.file_path = unicode_file_path
+                self.canvas.load_pixmap(QPixmap.fromImage(self.image)) 
+                if self.label_file:
+                    self.load_labels(self.label_file.shapes)    
+                self.set_clean()
+                self.canvas.setEnabled(True)
+                self.adjust_scale(initial=True)
+                self.paint_canvas()
+                self.add_recent_file(self.file_path)
+                self.toggle_actions(True)
+                self.show_bounding_box_from_annotation_file(self.file_path)                    
+                counter = self.counter_str()
+                self.setWindowTitle(__appname__ + ' ' + self.file_path + ' ' + counter)
+                
+                # Default : select last item if there is at least one item
+                if self.label_list.count():
+                    self.label_list.setCurrentItem(self.label_list.item(self.label_list.count() - 1))
+                    self.label_list.item(self.label_list.count() - 1).setSelected(True)
+    
+                self.canvas.setFocus(True)
+                return True
+ 
+        return True
 
     def counter_str(self):
         """
@@ -1399,37 +1395,43 @@ class MainWindow(QMainWindow, WindowMixin):
 
         if filename:
             self.load_file(filename)
-
-    def open_file(self, _value=False):
+# =============================================================================
+# 
+#     def open_file(self, _value=False):
+#         if not self.may_continue():
+#             return
+#         path = os.path.dirname(ustr(self.file_path)) if self.file_path else '.'
+#         formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
+#         filters = "Image & Label files (%s)" % ' '.join(formats + ['*%s' % LabelFile.suffix])
+#         filename = QFileDialog.getOpenFileName(self, '%s - Choose Image or Label file' % __appname__, path, filters)
+#         if filename:
+#             if isinstance(filename, (tuple, list)):
+#                 filename = filename[0]
+#             self.cur_img_idx = 0
+#             self.img_count = 1
+#             self.load_file(filename)
+# =============================================================================
+                   
+    def open_file(self):                 
         if not self.may_continue():
             return
         path = os.path.dirname(ustr(self.file_path)) if self.file_path else '.'
-        formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
-        filters = "Image & Label files (%s)" % ' '.join(formats + ['*%s' % LabelFile.suffix])
-        filename = QFileDialog.getOpenFileName(self, '%s - Choose Image or Label file' % __appname__, path, filters)
-        if filename:
-            if isinstance(filename, (tuple, list)):
-                filename = filename[0]
-            self.cur_img_idx = 0
-            self.img_count = 1
-            self.load_file(filename)
-                    
-    def import_file(self):                 
-        if not self.may_continue():
-            return
-        path = os.path.dirname(ustr(self.file_path)) if self.file_path else '.'
-        filters = "Label file (*.json)"
+        #filters = "Label file (*.json)"
+        filters = "Image & Labels extensions (%s)" % ' '.join(self.image_formats + ['*%s' % each for each in LabelFile.suffix])
         filename = QFileDialog.getOpenFileName(self, '%s - Choose a label file' % __appname__, path, filters)
         if filename:
             if isinstance(filename, (tuple, list)):
                 filename = filename[0]           
-                unicode_file_path = os.path.abspath(ustr(filename))
-                if unicode_file_path and os.path.exists(unicode_file_path):
-                    try:
-                        self.label_file = LabelFile()
-                        self.label_file.load_coco_file(unicode_file_path)
-                    except Exception as e:
-                        self.error_message(u'Error trying to open and parse the file', u'<b>%s</b>' % e)
+                self.load_file(filename)
+            else:
+                return False
+
+                # try:
+                #     path, basename = os.path.split(unicode_file_path)
+                #     self.label_file = LabelFile()
+                #     self.label_file.load_coco_file(unicode_file_path)
+                # except Exception as e:
+                #     self.error_message(u'Error trying to open and parse the file', u'<b>%s</b>' % e)
                                     
 
                     
@@ -1637,13 +1639,16 @@ def inverted(color):
 
 
 def read(filename, default=None):
-    try:
-        reader = QImageReader(filename)
-        reader.setAutoTransform(True)
-        return reader.read()
-    except:
-        return default
-
+    reader = QImageReader(filename)
+    # It is not clear why this property was originally enabled
+    # reader.setAutoTransform(True) 
+    img = reader.read()
+    if img.isNull():
+        # Convert QString to python string
+        msg = str(reader.errorString())
+        raise Exception(f"{msg}")
+    else:
+        return img
 
 def get_main_app(argv=[]):
     """
