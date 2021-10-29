@@ -12,17 +12,9 @@ from pycocotools.coco import COCO
 COCO_EXT = '.json'
 ENCODE_METHOD = DEFAULT_ENCODING
 COCO_BASIC_FORMAT ={"info","image","annotation","license"}
+COCO_ANNOTATION_FORMAT = {"id","image_id","category_id","segmentation","area","bbox","iscrowd"}
 
 class CocoWriter:
     def __init__(self, ann_file):
         self.coco = COCO(ann_file)
         
-    def check_coco_basic_format(self):
-        count = 0
-        for key in self.coco.dataset.keys():
-            if key in COCO_BASIC_FORMAT:
-                count += 1
-        if count < 4:
-            return False
-        else:
-            return True
