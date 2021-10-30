@@ -1074,7 +1074,6 @@ class MainWindow(QMainWindow, WindowMixin):
         unicode_file_path = ustr(file_path)
         unicode_file_path = os.path.abspath(unicode_file_path)
         
-
         if unicode_file_path and os.path.exists(unicode_file_path):
             if LabelFile.is_label_file(unicode_file_path):
                 try:
@@ -1089,9 +1088,9 @@ class MainWindow(QMainWindow, WindowMixin):
                     self.status("Error reading %s" % unicode_file_path)
                     return False
                 if not self.image.isNull():
-                    self.line_color = QColor(*self.label_file.lineColor)
-                    self.fill_color = QColor(*self.label_file.fillColor)
-                    self.canvas.verified = self.label_file.verified
+                    annotation = self.label_file.get_json_image_annotation(self.m_img_list[self.cur_img_idx])
+
+
             else:
                 # Load one image and update the current list of all images already loaded.   
                 try:
@@ -1101,7 +1100,6 @@ class MainWindow(QMainWindow, WindowMixin):
                                    u"<p>Make sure <i>%s</i> is a valid image file. %s" % (os.path.basename(unicode_file_path),e))
                     self.status("Error reading %s" % unicode_file_path)
                     return False 
-
 
                 self.label_file = None
                 self.canvas.verified = False            
@@ -1247,7 +1245,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.load_file(filename)
 
     def scan_all_images(self, folder_path):
-        extensions = ['.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
+        extensions = self.image_formats
         images = []
 
         for root, dirs, files in os.walk(folder_path):
@@ -1395,22 +1393,6 @@ class MainWindow(QMainWindow, WindowMixin):
 
         if filename:
             self.load_file(filename)
-# =============================================================================
-# 
-#     def open_file(self, _value=False):
-#         if not self.may_continue():
-#             return
-#         path = os.path.dirname(ustr(self.file_path)) if self.file_path else '.'
-#         formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
-#         filters = "Image & Label files (%s)" % ' '.join(formats + ['*%s' % LabelFile.suffix])
-#         filename = QFileDialog.getOpenFileName(self, '%s - Choose Image or Label file' % __appname__, path, filters)
-#         if filename:
-#             if isinstance(filename, (tuple, list)):
-#                 filename = filename[0]
-#             self.cur_img_idx = 0
-#             self.img_count = 1
-#             self.load_file(filename)
-# =============================================================================
                    
     def open_file(self):                 
         if not self.may_continue():
@@ -1419,22 +1401,13 @@ class MainWindow(QMainWindow, WindowMixin):
         #filters = "Label file (*.json)"
         filters = "Image & Labels extensions (%s)" % ' '.join(self.image_formats + ['*%s' % each for each in LabelFile.suffix])
         filename = QFileDialog.getOpenFileName(self, '%s - Choose a label file' % __appname__, path, filters)
-        if filename:
+        if all(filename):
             if isinstance(filename, (tuple, list)):
                 filename = filename[0]           
                 self.load_file(filename)
+                return True
             else:
                 return False
-
-                # try:
-                #     path, basename = os.path.split(unicode_file_path)
-                #     self.label_file = LabelFile()
-                #     self.label_file.load_coco_file(unicode_file_path)
-                # except Exception as e:
-                #     self.error_message(u'Error trying to open and parse the file', u'<b>%s</b>' % e)
-                                    
-
-                    
 
     def save_file(self, _value=False):
         if self.default_save_dir is not None and len(ustr(self.default_save_dir)):
