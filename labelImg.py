@@ -82,7 +82,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setWindowTitle(__appname__)
         
         self.image_formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
-
+       
         # Load setting in the main thread
         self.settings = Settings()
         self.settings.load()
@@ -104,7 +104,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.label_hist = []
         self.last_open_dir = None
         self.cur_img_idx = 0
-        self.img_count = 1
+        self.img_count = 0
 
         # Whether we need to save or not.
         self.dirty = False
@@ -1087,8 +1087,7 @@ class MainWindow(QMainWindow, WindowMixin):
                                        % (e, unicode_file_path))
                     self.status("Error reading %s" % unicode_file_path)
                     return False
-                if not self.image.isNull():
-                    annotation = self.label_file.get_json_image_annotation(self.m_img_list[self.cur_img_idx])
+                annotation = self.label_file.get_json_image_annotation(self.m_img_list[self.cur_img_idx])
 
 
             else:
@@ -1398,8 +1397,10 @@ class MainWindow(QMainWindow, WindowMixin):
         if not self.may_continue():
             return
         path = os.path.dirname(ustr(self.file_path)) if self.file_path else '.'
-        #filters = "Label file (*.json)"
-        filters = "Image & Labels extensions (%s)" % ' '.join(self.image_formats + ['*%s' % each for each in LabelFile.suffix])
+        if self.image.isNull():
+            filters = "Image extensions (%s)" % ' '.join(self.image_formats)
+        else:
+            filters = "Image & Labels extensions (%s)" % ' '.join(self.image_formats + ['*%s' % each for each in LabelFile.suffix])
         filename = QFileDialog.getOpenFileName(self, '%s - Choose a label file' % __appname__, path, filters)
         if all(filename):
             if isinstance(filename, (tuple, list)):
