@@ -8,15 +8,16 @@ except ImportError:
 
 from base64 import b64encode, b64decode
 from libs.pascal_voc_io import PascalVocWriter
-from libs.yolo_io import YOLOWriter
+from libs.yolo_io import YOLOWriter, TXT_EXT
 from libs.pascal_voc_io import XML_EXT
 from libs.create_ml_io import CreateMLWriter
 from libs.create_ml_io import JSON_EXT
 from enum import Enum
 import os.path
 import sys
-from libs.coco_io import CocoWriter, COCO_BASIC_FORMAT, COCO_ANNOTATION_FORMAT
+from libs.coco_io import CocoWriter, COCO_BASIC_FORMAT_OBJD, COCO_ANNOTATION_FORMAT
 import json
+from pathlib import Path, PurePath
 
 class LabelFileFormat(Enum):
     PASCAL_VOC = 1
@@ -24,22 +25,109 @@ class LabelFileFormat(Enum):
     CREATE_ML = 3
     COCO = 4
 
-
 class LabelFileError(Exception):
     pass
 
+class AnnotationFile(object):
+    def __init__(self, filepath):
+        self.annotation_format = None
+        self.filename = Path(filepath).stem
+        self.filepath = filepath
+        self.file_extension = Path(filepath).suffix
+    
+    def load(self):
+        pass
+    
+    def save(self, annotation):
+        pass
+    
+    def read(self, image_filename):
+        pass
 
+class XMLFile(AnnotationFile):
+    pass
+
+class TXTFile(AnnotationFile):
+    pass
+
+class JSONFile(AnnotationFile):
+    
+    def load(self):
+        with open(self.filepath, 'r') as file:
+            input_data = file.read()
+        self.dataset = json.loads(input_data) 
+        if self._is_coco_format_():
+            self.json_format = LabelFileFormat.COCO
+        elif self._is_createml_format_():
+            self.json_format = LabelFileFormat.CREATE_ML
+        else:
+            self.json_format = None
+        
+    def save(self, annotation):
+        pass
+    
+    def read(self, image_filename):
+        pass
+    
+    def _is_coco_format_(self):
+        coco_count = 0
+        coco_annotation_count = 0
+        for key in self.dataset.keys():
+            if key in COCO_BASIC_FORMAT_OBJD:
+                coco_count += 1
+        if coco_count == len(COCO_BASIC_FORMAT_OBJD):
+            if isinstance(self.dataset[COCO_BASIC_FORMAT_OBJD[2]], list) and len(self.dataset[COCO_BASIC_FORMAT_OBJD[2]]) > 0:
+                for innerkey in self.dataset[COCO_BASIC_FORMAT_OBJD[2]][-1]:
+                    if innerkey in COCO_ANNOTATION_FORMAT:
+                        coco_annotation_count += 1
+        if coco_count == len(COCO_BASIC_FORMAT_OBJD) and coco_annotation_count == len(COCO_ANNOTATION_FORMAT):
+            return True
+        else:
+            return False        
+        
+    def _is_createml_format_(self):
+        return False
+
+       
+class COCOFile(JSONFile):
+    def __init__(self, jsonfile):
+        self._json_file_ = jsonfile
+        super(COCOFile, self).__init__(jsonfile.filepath)
+        
+    def load(self):
+        try:
+            self._current_json_file_ = CocoWriter(self._json_file_.dataset)
+        except Exception:
+            raise ValueError('This file does not have a COCO basic format')            
+        
+    def read(self, image_filename):
+        self.load()
+        img_id = self._current_json_file_.get_image_id(os.path.basename(image_filename))
+        if img_id:
+            ann_id = self._current_json_file_.getAnnIds(imgIds=img_id)
+            annotation = self._current_json_file_.loadAnns(ids=ann_id)
+            if annotation:
+                return annotation
+            else:
+                return None        
+        
 class LabelFile(object):
     # It might be changed as window creates. By default, using XML ext
     # suffix = '.lif'
-    #suffix = XML_EXT
-    suffix = [XML_EXT, JSON_EXT]
+    suffix = (XML_EXT, JSON_EXT, TXT_EXT)
 
     def __init__(self, filename=None):
         self.shapes = ()
         self.image_path = None
         self.image_data = None
         self.verified = False
+        if filename and Path(filename).suffix == LabelFile.suffix[1]:
+            self.json_file = JSONFile(filename)
+            self.json_file.load()
+            if self.json_file.json_format == LabelFileFormat.COCO:
+                self.label_file = COCOFile(self.json_file)
+            else:
+                self.labe_file = None
 
     def save_create_ml_format(self, filename, shapes, image_path, image_data, class_list, line_color=None, fill_color=None, database_src=None):
         img_folder_name = os.path.basename(os.path.dirname(image_path))
@@ -189,44 +277,7 @@ class LabelFile(object):
         '''
         return int(x_min), int(y_min), int(x_max), int(y_max)
     
-    def load_create_ml(self, filename):
-        return False
-
-    def load_coco_file(self, filename):
-        try:
-            coco = CocoWriter(filename)
-            self._current_label_file_ = coco
-            self._type_label_file_ = LabelFileFormat.COCO
-        except Exception:
-            raise ValueError('This file does not have a COCO basic format')
-            
-    def _is_createml_format_(self, filename):
-        return False
     
-    def _is_coco_format_(self, filename):
-        with open(filename, 'r') as file:
-            input_data = file.read()
-        dataset = json.loads(input_data)    
-        coco_count = 0
-        coco_annotation_count = 0
-        for key in dataset.keys():
-            if key in COCO_BASIC_FORMAT:
-                coco_count += 1
-        if coco_count == len(COCO_BASIC_FORMAT):
-            if isinstance(dataset['annotation'], list) and len(dataset['annotation']) > 0:
-                for innerkey in dataset['annotation'][-1]:
-                    if innerkey in COCO_ANNOTATION_FORMAT:
-                        coco_annotation_count += 1
-        if coco_count == len(COCO_BASIC_FORMAT) and coco_annotation_count == len(COCO_ANNOTATION_FORMAT):
-            return True
-        else:
-            return False
-        
-    def load_json(self, filename):
-        if self._is_coco_format_(filename):
-            self.load_coco_file(filename)
-        elif self._is_createml_format_(filename):
-            self.load_create_ml(filename)
-        else:
-            raise ValueError('This file does not have a label format supported.')
-           
+    def get_image_annotation(self, image_filename):
+        if self.label_file:
+          return  self.label_file.read(image_filename)
