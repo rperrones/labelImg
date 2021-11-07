@@ -82,6 +82,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setWindowTitle(__appname__)
         
         self.image_formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
+        self.label_suffix = LabelFile.suffix[0] # default annotation file
        
         # Load setting in the main thread
         self.settings = Settings()
@@ -530,25 +531,25 @@ class MainWindow(QMainWindow, WindowMixin):
             self.actions.save_format.setText(FORMAT_PASCALVOC)
             self.actions.save_format.setIcon(new_icon("format_voc"))
             self.label_file_format = LabelFileFormat.PASCAL_VOC
-            LabelFile.suffix = XML_EXT
+            self.label_suffix = LabelFile.suffix[0] 
 
         elif save_format == FORMAT_YOLO:
             self.actions.save_format.setText(FORMAT_YOLO)
             self.actions.save_format.setIcon(new_icon("format_yolo"))
             self.label_file_format = LabelFileFormat.YOLO
-            LabelFile.suffix = TXT_EXT
+            self.label_suffix = LabelFile.suffix[2] 
 
         elif save_format == FORMAT_CREATEML:
             self.actions.save_format.setText(FORMAT_CREATEML)
             self.actions.save_format.setIcon(new_icon("format_createml"))
             self.label_file_format = LabelFileFormat.CREATE_ML
-            LabelFile.suffix = JSON_EXT
+            self.label_suffix = LabelFile.suffix[1] 
             
         elif save_format == FORMAT_COCO:
             self.actions.save_format.setText(FORMAT_COCO)
             self.actions.save_format.setIcon(new_icon("format_coco"))
             self.label_file_format = LabelFileFormat.COCO
-            LabelFile.suffix = JSON_EXT
+            self.label_suffix = LabelFile.suffix[1] 
             
     def change_format(self):
         if self.label_file_format == LabelFileFormat.PASCAL_VOC:
@@ -1077,9 +1078,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if unicode_file_path and os.path.exists(unicode_file_path):
             if LabelFile.is_label_file(unicode_file_path):
                 try:
-                    self.label_file = LabelFile()
-                    if self.label_file.is_json_file(unicode_file_path):
-                        self.label_file.load_json(unicode_file_path)
+                    self.label_file = LabelFile(unicode_file_path)
                 except Exception as e:
                     self.error_message(u'Error opening file',
                                        (u"<p><b>%s</b></p>"
@@ -1087,7 +1086,8 @@ class MainWindow(QMainWindow, WindowMixin):
                                        % (e, unicode_file_path))
                     self.status("Error reading %s" % unicode_file_path)
                     return False
-                annotation = self.label_file.get_json_image_annotation(self.m_img_list[self.cur_img_idx])
+                annotation = self.label_file.get_image_annotation(self.m_img_list[self.cur_img_idx])
+                print(annotation)
 
 
             else:
@@ -1431,10 +1431,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def save_file_dialog(self, remove_ext=True):
         caption = '%s - Choose File' % __appname__
-        filters = 'File (*%s)' % LabelFile.suffix
+        filters = 'File (*%s)' % self.label_suffix
         open_dialog_path = self.current_path()
         dlg = QFileDialog(self, caption, open_dialog_path, filters)
-        dlg.setDefaultSuffix(LabelFile.suffix[1:])
+        dlg.setDefaultSuffix(self.label_suffix[1:])
         dlg.setAcceptMode(QFileDialog.AcceptSave)
         filename_without_extension = os.path.splitext(self.file_path)[0]
         dlg.selectFile(filename_without_extension)
