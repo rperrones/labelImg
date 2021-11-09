@@ -35,9 +35,6 @@ class AnnotationFile():
         self.filepath = filepath
         self.file_extension = Path(filepath).suffix
     
-    def load(self):
-        pass
-    
     def save(self, annotation):
         pass
     
@@ -51,15 +48,16 @@ class TXTFile(AnnotationFile):
     pass
 
 class JSONFile(AnnotationFile):
-    
-    def load(self):
+    def __init__(self, filepath):
+        super(JSONFile, self).__init__(filepath)
+
         with open(self.filepath, 'r') as file:
             input_data = file.read()
         self.dataset = json.loads(input_data) 
         if self.__is_coco_format__():
-            self.json_format = LabelFileFormat.COCO
+            self.annotation_file = COCOFile(self.dataset)
         elif self.__is_createml_format__():
-            self.json_format = LabelFileFormat.CREATE_ML
+            self.annotation_file = CreateML()
         else:
             self.json_format = None    
     
@@ -81,38 +79,57 @@ class JSONFile(AnnotationFile):
         
     def __is_createml_format__(self):
         return False
+    
+    def get_image_annotation(self, image_name=None, image_id=None):
+        return self.annotation_file.get_image_annotation(image_name, image_id)
+    
+    def get_category_annotation(self):
+        return self.annotation_file.get_category_annotation()
 
+    def save(self, annotation):
+        self.annotation.save(annotation)
        
-class COCOFile(JSONFile):
-    def __init__(self, jsonfile):
-        self.json_format = jsonfile.json_format
-        self.dataset = jsonfile.dataset
-        super(COCOFile, self).__init__(jsonfile.filepath)
-        
-    def load(self):
+class COCOFile():
+    def __init__(self, dataset):
+        self.dataset = dataset
+        self.__current_image_id = None
+        self.__current_annotation_id__ = None
+        self.__current_category_id__ = None
         try:
-            self._current_json_file_ = CocoWriter(self.dataset)
+            self.__current_json_file__ = CocoWriter(self.dataset)
         except Exception:
-            raise ValueError('This file does not have a COCO basic format')            
+            raise ValueError('This file does not have a COCO basic format')      
+              
         
-    def read(self, image_name=None, image_id=None, category_id=None):
-        self.load()
+    def get_image_annotation(self, image_name=None, image_id=None):
         if image_name:
-            img_id = self._current_json_file_.get_image_id(os.path.basename(image_name))
+            img_id = self.__current_json_file__.get_image_id(os.path.basename(image_name))
             if img_id:
-                ann_id = self._current_json_file_.getAnnIds(imgIds=img_id)
-                annotation = self._current_json_file_.loadAnns(ids=ann_id)
+                ann_id = self.__current_json_file__.getAnnIds(imgIds=img_id)
+                annotation = self.__current_json_file__.loadAnns(ids=ann_id)
                 if annotation:
+                    self.__current_image_id = img_id
+                    self.__current_annotation_id__ = []
+                    self.__current_category_id__ = []
+                    for each in annotation:
+                        self.__current_annotation_id__.append(each.get(COCO_ANNOTATION_FORMAT[0]))
+                        if each.get(COCO_ANNOTATION_FORMAT[2]) not in self.__current_category_id__:
+                            self.__current_category_id__.append(each.get(COCO_ANNOTATION_FORMAT[2]))
                     return annotation
                 else:
                     return None  
         elif image_id:
             return None
-        elif category_id:
-            category = self._current_json_file_.loadCats(ids=category_id)
-            return category
-        else:
-            return None
+    def get_category_annotation(self):
+        if self.__current_image_id:
+            return self.__current_json_file__.loadCats(ids=self.__current_category_id__)
+        
+    def save(self, annotation):
+        pass
+
+class CreateML():
+    pass
+
         
 class LabelFile(object):
     # It might be changed as window creates. By default, using XML ext
@@ -126,11 +143,9 @@ class LabelFile(object):
         self.verified = False
         if filename and Path(filename).suffix == LabelFile.suffix[1]:
             self.json_file = JSONFile(filename)
-            self.json_file.load()
-            if self.json_file.json_format == LabelFileFormat.COCO:
-                self.annotation_file = COCOFile(self.json_file)
-            elif self.json_file.json_format == LabelFileFormat.CREATE_ML:
-                self.annotation_file = None # Future implementation of createml ml
+
+    def upadte_label_file(self, filename):
+        self.__init__(filename)
 
     def save_create_ml_format(self, filename, shapes, image_path, image_data, class_list, line_color=None, fill_color=None, database_src=None):
         img_folder_name = os.path.basename(os.path.dirname(image_path))
@@ -282,12 +297,8 @@ class LabelFile(object):
     
     
     def get_annotation(self, image_filename):
-        if self.annotation_file and isinstance(self.annotation_file, COCOFile):
-            return self.annotation_file.read(image_name=image_filename)
+        return self.json_file.get_image_annotation(image_name=image_filename)
       
-    def get_category(self, annotation):
-        if self.annotation_file and isinstance(self.annotation_file, COCOFile):
-            categ_id = annotation[0][COCO_ANNOTATION_FORMAT[2]]
-            categ_obj = self.annotation_file.read(category_id=categ_id)
-            categ_name = categ_obj[0].get(COCO_CATEGORY_FORMAT[1])
-            return categ_name
+    def get_category(self):
+        return self.json_file.get_category_annotation()
+            
