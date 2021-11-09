@@ -16,6 +16,7 @@ ENCODE_METHOD = DEFAULT_ENCODING
 COCO_BASIC_FORMAT_OBJD = ["info","images","annotations","categories","license"]
 COCO_ANNOTATION_FORMAT = ["id","image_id","category_id","segmentation","area","bbox","iscrowd"]
 COCO_IMAGE_FORMAT = ["id","width","height","file_name","license","flickr_url","coco_url","date_captured"]
+COCO_CATEGORY_FORMAT = ["id","name","supercategory"]
 
 class CocoWriter(COCO):
     def __init__(self, dataset):
