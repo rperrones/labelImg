@@ -1086,10 +1086,7 @@ class MainWindow(QMainWindow, WindowMixin):
                                        % (e, unicode_file_path))
                     self.status("Error reading %s" % unicode_file_path)
                     return False
-                annotation = self.label_file.get_image_annotation(self.m_img_list[self.cur_img_idx])
-                print(annotation)
-
-
+                annotation = self.label_file.get_annotation(self.m_img_list[self.cur_img_idx])      
             else:
                 # Load one image and update the current list of all images already loaded.   
                 try:
@@ -1100,7 +1097,7 @@ class MainWindow(QMainWindow, WindowMixin):
                     self.status("Error reading %s" % unicode_file_path)
                     return False 
 
-                self.label_file = None
+                #self.label_file = None
                 self.canvas.verified = False            
                 if self.file_list_widget.count() == 0 or unicode_file_path not in self.m_img_list:
                     item = QListWidgetItem(unicode_file_path)
@@ -1113,30 +1110,30 @@ class MainWindow(QMainWindow, WindowMixin):
                 elif self.file_list_widget.count() > 0 and unicode_file_path in self.m_img_list:
                     self.cur_img_idx = self.m_img_list.index(unicode_file_path)
                 self.img_count = len(self.m_img_list)                    
-                current_file_widget_item = self.file_list_widget.item(self.cur_img_idx)
-                current_file_widget_item.setSelected(True)
-                self.status("Loaded %s" % os.path.basename(unicode_file_path))
-                self.file_path = unicode_file_path
-                self.canvas.load_pixmap(QPixmap.fromImage(self.image)) 
-                if self.label_file:
-                    self.load_labels(self.label_file.shapes)    
-                self.set_clean()
-                self.canvas.setEnabled(True)
-                self.adjust_scale(initial=True)
-                self.paint_canvas()
-                self.add_recent_file(self.file_path)
-                self.toggle_actions(True)
-                self.show_bounding_box_from_annotation_file(self.file_path)                    
-                counter = self.counter_str()
-                self.setWindowTitle(__appname__ + ' ' + self.file_path + ' ' + counter)
-                
-                # Default : select last item if there is at least one item
-                if self.label_list.count():
-                    self.label_list.setCurrentItem(self.label_list.item(self.label_list.count() - 1))
-                    self.label_list.item(self.label_list.count() - 1).setSelected(True)
-    
-                self.canvas.setFocus(True)
-                return True
+            current_file_widget_item = self.file_list_widget.item(self.cur_img_idx)
+            current_file_widget_item.setSelected(True)
+            self.status("Loaded %s" % os.path.basename(unicode_file_path))
+            self.file_path = unicode_file_path
+            self.canvas.load_pixmap(QPixmap.fromImage(self.image)) 
+            if self.label_file:
+                self.load_labels(self.label_file.shapes)    
+            self.set_clean()
+            self.canvas.setEnabled(True)
+            self.adjust_scale(initial=True)
+            self.paint_canvas()
+            self.add_recent_file(self.file_path)
+            self.toggle_actions(True)
+            self.show_bounding_box_from_annotation_file(self.file_path)                    
+            counter = self.counter_str()
+            self.setWindowTitle(__appname__ + ' ' + self.file_path + ' ' + counter)
+            
+            # Default : select last item if there is at least one item
+            if self.label_list.count():
+                self.label_list.setCurrentItem(self.label_list.item(self.label_list.count() - 1))
+                self.label_list.item(self.label_list.count() - 1).setSelected(True)
+
+            self.canvas.setFocus(True)
+            return True
  
         return True
 
