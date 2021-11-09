@@ -92,7 +92,7 @@ class JSONFile(AnnotationFile):
 class COCOFile():
     def __init__(self, dataset):
         self.dataset = dataset
-        self.__current_image_id = None
+        self.__current_image_id__ = None
         self.__current_annotation_id__ = None
         self.__current_category_id__ = None
         try:
@@ -108,7 +108,7 @@ class COCOFile():
                 ann_id = self.__current_json_file__.getAnnIds(imgIds=img_id)
                 annotation = self.__current_json_file__.loadAnns(ids=ann_id)
                 if annotation:
-                    self.__current_image_id = img_id
+                    self.__current_image_id__ = img_id
                     self.__current_annotation_id__ = []
                     self.__current_category_id__ = []
                     for each in annotation:
@@ -121,7 +121,7 @@ class COCOFile():
         elif image_id:
             return None
     def get_category_annotation(self):
-        if self.__current_image_id:
+        if self.__current_image_id__:
             return self.__current_json_file__.loadCats(ids=self.__current_category_id__)
         
     def save(self, annotation):
