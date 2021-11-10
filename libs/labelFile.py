@@ -34,6 +34,7 @@ class AnnotationFile():
         self.filename = Path(filepath).stem
         self.filepath = filepath
         self.file_extension = Path(filepath).suffix
+        self.path = Path(filepath).parent
     
     def save(self, annotation):
         pass
@@ -44,8 +45,9 @@ class AnnotationFile():
 class XMLFile(AnnotationFile):
     pass
 
-class TXTFile(AnnotationFile):
+class YOLOFile(AnnotationFile):
     pass
+        
 
 class JSONFile(AnnotationFile):
     def __init__(self, filepath):
@@ -57,7 +59,7 @@ class JSONFile(AnnotationFile):
         if self.__is_coco_format__():
             self.annotation_file = COCOFile(self.dataset)
         elif self.__is_createml_format__():
-            self.annotation_file = CreateMLFile()
+            self.annotation_file = CreateMLFile(self.dataset)
         else:
             self.json_format = None    
     
@@ -128,7 +130,8 @@ class COCOFile():
         pass
 
 class CreateMLFile():
-    pass
+    def __init__(self, dataset):
+        pass
 
         
 class LabelFile(object):
@@ -142,7 +145,7 @@ class LabelFile(object):
         self.image_data = None
         self.verified = False
         if filename and Path(filename).suffix == LabelFile.suffix[1]:
-            self.json_file = JSONFile(filename)
+            self.__label_file__ = JSONFile(filename)
 
     def upadte_label_file(self, filename):
         self.__init__(filename)
@@ -297,8 +300,8 @@ class LabelFile(object):
     
     
     def get_annotation(self, image_filename):
-        return self.json_file.get_image_annotation(image_name=image_filename)
+        return self.__label_file__.get_image_annotation(image_name=image_filename)
       
     def get_category(self):
-        return self.json_file.get_category_annotation()
+        return self.__label_file__.get_category_annotation()
             
