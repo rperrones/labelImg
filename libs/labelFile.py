@@ -57,7 +57,7 @@ class JSONFile(AnnotationFile):
         if self.__is_coco_format__():
             self.annotation_file = COCOFile(self.dataset)
         elif self.__is_createml_format__():
-            self.annotation_file = CreateML()
+            self.annotation_file = CreateMLFile()
         else:
             self.json_format = None    
     
@@ -127,7 +127,7 @@ class COCOFile():
     def save(self, annotation):
         pass
 
-class CreateML():
+class CreateMLFile():
     pass
 
         
