@@ -7,7 +7,7 @@ Created on Sun Oct 24 18:36:13 2021
 e-mail: rperrones@yahoo.com
 """
 from libs.constants import DEFAULT_ENCODING
-from pycocotools.coco import COCO
+from pycocotools.coco import COCO, _isArrayLike
 from collections import defaultdict
 import time
 
@@ -35,6 +35,21 @@ class CocoWriter(COCO):
         print('Done (t={:0.2f}s)'.format(time.time()- tic))
         self.dataset = dataset
         self.createIndex()
+        
+        
+    def loadCats(self, ids=[]):
+        """
+        This version was adapted from pycocotools
+        Load cats with the specified ids.
+        :param ids (int array)       : integer ids specifying cats
+        :return: cats (object array) : loaded cat objects
+        """
+        if _isArrayLike(ids) and len(ids)==0:
+            return [value for value in self.cats.values()]
+        elif _isArrayLike(ids):
+            return [self.cats[id] for id in ids]
+        elif type(ids) == int:
+            return [self.cats[ids]]   
         
     def get_image_id(self, basename):
         id = None
