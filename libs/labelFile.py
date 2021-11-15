@@ -16,6 +16,7 @@ from enum import Enum
 import os.path
 import sys
 from libs.coco_io import CocoWriter, COCO_BASIC_FORMAT_OBJD, COCO_ANNOTATION_FORMAT, COCO_CATEGORY_FORMAT
+from libs.constants import FORMAT_COCO, FORMAT_YOLO
 import json
 from pathlib import Path
 
@@ -57,9 +58,9 @@ class JSONFile(AnnotationFile):
             input_data = file.read()
         self.dataset = json.loads(input_data) 
         if self.__is_coco_format__():
-            self.annotation_file = COCOFile(self.dataset)
+            self.json_file = COCOFile(self.dataset)
         elif self.__is_createml_format__():
-            self.annotation_file = CreateMLFile(self.dataset)
+            self.json_file = CreateMLFile(self.dataset)
         else:
             self.json_format = None    
     
@@ -82,14 +83,8 @@ class JSONFile(AnnotationFile):
     def __is_createml_format__(self):
         return False
     
-    def get_image_annotation(self, image_name=None, image_id=None):
-        return self.annotation_file.get_image_annotation(image_name, image_id)
-    
-    def get_category_annotation(self):
-        return self.annotation_file.get_category_annotation()
-
-    def save(self, annotation):
-        self.annotation.save(annotation)
+    def get_json_file(self):
+        return self.json_file
        
 class COCOFile():
     def __init__(self, dataset):
@@ -122,9 +117,11 @@ class COCOFile():
                     return None  
         elif image_id:
             return None
-    def get_category_annotation(self):
-        if self.__current_image_id__:
-            return self.__current_json_file__.loadCats(ids=self.__current_category_id__)
+    def get_category_annotation(self, id=None):
+        if id:
+            return self.__current_json_file__.loadCats(id)
+        else:
+            return self.__current_json_file__.loadCats()
         
     def save(self, annotation):
         pass
@@ -145,7 +142,9 @@ class LabelFile(object):
         self.image_data = None
         self.verified = False
         if filename and Path(filename).suffix == LabelFile.suffix[1]:
-            self.__label_file__ = JSONFile(filename)
+            json = JSONFile(filename)
+            self.json_file = json.get_json_file()
+            
 
     def upadte_label_file(self, filename):
         self.__init__(filename)
@@ -300,8 +299,29 @@ class LabelFile(object):
     
     
     def get_annotation(self, image_filename):
-        return self.__label_file__.get_image_annotation(image_name=image_filename)
-      
-    def get_category(self):
-        return self.__label_file__.get_category_annotation()
+        if isinstance(self.json_file, COCOFile):
+            shapes = []
+            annotations = self.json_file.get_image_annotation(image_name=image_filename)
+            if annotations:
+                for annotation in annotations:
+                    x_min, y_min, width, height = annotation.get(COCO_ANNOTATION_FORMAT[5])
+                    x_max = x_min + width
+                    y_max = y_min + height
+                    label_obj = self.json_file.get_category_annotation(id=annotation.get(COCO_ANNOTATION_FORMAT[2]))[0]
+                    label = label_obj.get(COCO_CATEGORY_FORMAT[1])
+                    points = [(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)]       
+                    shapes.append((label, points, None, None, False))
+            return shapes
             
+            
+    def get_category(self):
+        if isinstance(self.json_file, COCOFile):
+            cats = self.json_file.get_category_annotation()
+            c = []
+            for cat in cats:
+                c.append(cat.get(COCO_CATEGORY_FORMAT[1]))
+            return c
+            
+    def get_file_format(self):
+        if isinstance(self.json_file, COCOFile):
+            return FORMAT_COCO
