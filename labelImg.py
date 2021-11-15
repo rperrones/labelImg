@@ -1117,8 +1117,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.file_path = unicode_file_path
             self.canvas.load_pixmap(QPixmap.fromImage(self.image)) 
             if self.label_file:
-                self.label_file.load_annotation(self.m_img_list[self.cur_img_idx])                                
-                self.load_labels(self.label_file.shapes)    
+                self.load_labels(self.label_file.get_annotation(self.m_img_list[self.cur_img_idx]))    
             self.set_clean()
             self.canvas.setEnabled(True)
             self.adjust_scale(initial=True)
