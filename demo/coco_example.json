@@ -1,0 +1,105 @@
+{
+  "images": [
+    {
+      "file_name": "1.png",
+      "height": 1024,
+      "width": 1536,
+      "id": 1
+    }
+  ],
+  "type": "instances",
+  "annotations": [
+    {
+      "area": 10812,
+      "iscrowd": 0,
+      "bbox": [
+        135,
+        231,
+        106,
+        102
+      ],
+      "category_id": 1,
+      "ignore": 0,
+      "segmentation": [],
+      "image_id": 1,
+      "id": 1
+    },
+    {
+      "area": 51360,
+      "iscrowd": 0,
+      "bbox": [
+        647,
+        55,
+        535,
+        96
+      ],
+      "category_id": 2,
+      "ignore": 0,
+      "segmentation": [],
+      "image_id": 1,
+      "id": 2
+    },
+    {
+      "area": 25404,
+      "iscrowd": 0,
+      "bbox": [
+        1120,
+        624,
+        73,
+        348
+      ],
+      "category_id": 2,
+      "ignore": 0,
+      "segmentation": [],
+      "image_id": 1,
+      "id": 3
+    },
+    {
+      "area": 1155,
+      "iscrowd": 0,
+      "bbox": [
+        181,
+        582,
+        33,
+        35
+      ],
+      "category_id": 3,
+      "ignore": 0,
+      "segmentation": [],
+      "image_id": 1,
+      "id": 4
+    }
+  ],
+  "categories": [
+    {
+      "supercategory": "none",
+      "id": 1,
+      "name": "car"
+    },
+    {
+      "supercategory": "none",
+      "id": 2,
+      "name": "truck"
+    },
+    {
+      "supercategory": "none",
+      "id": 3,
+      "name": "bike"
+    }
+  ],
+  "license": [
+    {
+      "id": "int",
+      "name": "str",
+      "url": "str"
+    }
+  ],
+  "info": {
+    "year": "int",
+    "version": "str",
+    "description": "str",
+    "contribution": "str",
+    "url": "str",
+    "date_created": "datetime"
+  }
+}
