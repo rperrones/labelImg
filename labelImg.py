@@ -50,7 +50,6 @@ from libs.create_ml_io import CreateMLReader
 from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
-import traceback
 
 __appname__ = 'labelImg'
 
@@ -83,6 +82,7 @@ class MainWindow(QMainWindow, WindowMixin):
         
         self.image_formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
         self.label_suffix = LabelFile.suffix[0] # default annotation file
+        self.label_file = None
        
         # Load setting in the main thread
         self.settings = Settings()
@@ -115,7 +115,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.screencast = "https://youtu.be/p0nR2YsCY_U"
 
         # Load predefined classes to the list
-        self.load_predefined_classes(default_prefdef_class_file)
+        self.load_classes(default_prefdef_class_file)
 
         # Main widgets and related state.
         self.label_dialog = LabelDialog(parent=self, list_item=self.label_hist)
@@ -247,13 +247,13 @@ class MainWindow(QMainWindow, WindowMixin):
             returns a tuple containing (title, icon_name) of the selected format
             """
             if format == LabelFileFormat.PASCAL_VOC:
-                return '&PascalVOC', 'format_voc'
+                return '&PascalVOC', 'format_voc'         
             elif format == LabelFileFormat.YOLO:
                 return '&YOLO', 'format_yolo'
             elif format == LabelFileFormat.CREATE_ML:
                 return '&CreateML', 'format_createml'
             elif format == LabelFileFormat.COCO:
-                return '&COCO', 'format_coco'            
+                return '&COCO', 'format_coco'  
 
         save_format = action(get_format_meta(self.label_file_format)[0],
                              self.change_format, 'Ctrl+',
@@ -557,9 +557,9 @@ class MainWindow(QMainWindow, WindowMixin):
         elif self.label_file_format == LabelFileFormat.YOLO:
             self.set_format(FORMAT_CREATEML)
         elif self.label_file_format == LabelFileFormat.CREATE_ML:
-            self.set_format(FORMAT_PASCALVOC)
-        elif self.label_file_format == LabelFileFormat.COCO:
             self.set_format(FORMAT_COCO)
+        elif self.label_file_format == LabelFileFormat.COCO:
+            self.set_format(FORMAT_PASCALVOC)            
         else:
             raise ValueError('Unknown label file format.')
         self.set_dirty()
@@ -629,7 +629,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.label_list.clear()
         self.file_path = None
         self.image_data = None
-        self.label_file = None
+        #self.label_file = None
         self.canvas.reset_state()
         self.label_coordinates.clear()
         self.combo_box.cb.clear()
@@ -1079,6 +1079,8 @@ class MainWindow(QMainWindow, WindowMixin):
             if LabelFile.is_label_file(unicode_file_path):
                 try:
                     self.label_file = LabelFile(unicode_file_path)
+                    self.set_format(self.label_file.get_file_format())               
+                    self.load_classes(None, classes=self.label_file.get_category())
                 except Exception as e:
                     self.error_message(u'Error opening file',
                                        (u"<p><b>%s</b></p>"
@@ -1086,7 +1088,6 @@ class MainWindow(QMainWindow, WindowMixin):
                                        % (e, unicode_file_path))
                     self.status("Error reading %s" % unicode_file_path)
                     return False
-                annotation = self.label_file.get_annotation(self.m_img_list[self.cur_img_idx])      
             else:
                 # Load one image and update the current list of all images already loaded.   
                 try:
@@ -1116,6 +1117,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.file_path = unicode_file_path
             self.canvas.load_pixmap(QPixmap.fromImage(self.image)) 
             if self.label_file:
+                self.label_file.load_annotation(self.m_img_list[self.cur_img_idx])                                
                 self.load_labels(self.label_file.shapes)    
             self.set_clean()
             self.canvas.setEnabled(True)
@@ -1123,7 +1125,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.paint_canvas()
             self.add_recent_file(self.file_path)
             self.toggle_actions(True)
-            self.show_bounding_box_from_annotation_file(self.file_path)                    
+            #self.show_bounding_box_from_annotation_file(self.file_path)                    
             counter = self.counter_str()
             self.setWindowTitle(__appname__ + ' ' + self.file_path + ' ' + counter)
             
@@ -1542,8 +1544,10 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.end_move(copy=False)
         self.set_dirty()
 
-    def load_predefined_classes(self, predef_classes_file):
-        if os.path.exists(predef_classes_file) is True:
+    def load_classes(self, predef_classes_file, classes=None):
+        if classes:
+            self.label_hist = classes
+        elif os.path.exists(predef_classes_file) is True:
             with codecs.open(predef_classes_file, 'r', 'utf8') as f:
                 for line in f:
                     line = line.strip()
