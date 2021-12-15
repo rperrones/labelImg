@@ -79,11 +79,11 @@ class MainWindow(QMainWindow, WindowMixin):
     def __init__(self, default_filename=None, default_prefdef_class_file=None, default_save_dir=None):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
-        
+
         self.image_formats = ['*.%s' % fmt.data().decode("ascii").lower() for fmt in QImageReader.supportedImageFormats()]
         self.label_suffix = LabelFile.suffix[0] # default annotation file
         self.label_file = None
-       
+
         # Load setting in the main thread
         self.settings = Settings()
         self.settings.load()
@@ -105,7 +105,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.label_hist = []
         self.last_open_dir = None
         self.cur_img_idx = 0
-        self.img_count = 0
+        self.img_count = len(self.m_img_list)
 
         # Whether we need to save or not.
         self.dirty = False
@@ -218,7 +218,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         open = action(get_str('openFile'), self.open_file,
                       'Ctrl+O', 'open', get_str('openFileDetail'))
-        
+
 
         open_dir = action(get_str('openDir'), self.open_dir_dialog,
                           'Ctrl+u', 'open', get_str('openDir'))
@@ -247,13 +247,13 @@ class MainWindow(QMainWindow, WindowMixin):
             returns a tuple containing (title, icon_name) of the selected format
             """
             if format == LabelFileFormat.PASCAL_VOC:
-                return '&PascalVOC', 'format_voc'         
+                return '&PascalVOC', 'format_voc'
             elif format == LabelFileFormat.YOLO:
                 return '&YOLO', 'format_yolo'
             elif format == LabelFileFormat.CREATE_ML:
                 return '&CreateML', 'format_createml'
             elif format == LabelFileFormat.COCO:
-                return '&COCO', 'format_coco'  
+                return '&COCO', 'format_coco'
 
         save_format = action(get_format_meta(self.label_file_format)[0],
                              self.change_format, 'Ctrl+',
@@ -531,26 +531,26 @@ class MainWindow(QMainWindow, WindowMixin):
             self.actions.save_format.setText(FORMAT_PASCALVOC)
             self.actions.save_format.setIcon(new_icon("format_voc"))
             self.label_file_format = LabelFileFormat.PASCAL_VOC
-            self.label_suffix = LabelFile.suffix[0] 
+            self.label_suffix = LabelFile.suffix[0]
 
         elif save_format == FORMAT_YOLO:
             self.actions.save_format.setText(FORMAT_YOLO)
             self.actions.save_format.setIcon(new_icon("format_yolo"))
             self.label_file_format = LabelFileFormat.YOLO
-            self.label_suffix = LabelFile.suffix[2] 
+            self.label_suffix = LabelFile.suffix[2]
 
         elif save_format == FORMAT_CREATEML:
             self.actions.save_format.setText(FORMAT_CREATEML)
             self.actions.save_format.setIcon(new_icon("format_createml"))
             self.label_file_format = LabelFileFormat.CREATE_ML
-            self.label_suffix = LabelFile.suffix[1] 
-            
+            self.label_suffix = LabelFile.suffix[1]
+
         elif save_format == FORMAT_COCO:
             self.actions.save_format.setText(FORMAT_COCO)
             self.actions.save_format.setIcon(new_icon("format_coco"))
             self.label_file_format = LabelFileFormat.COCO
-            self.label_suffix = LabelFile.suffix[1] 
-            
+            self.label_suffix = LabelFile.suffix[1]
+
     def change_format(self):
         if self.label_file_format == LabelFileFormat.PASCAL_VOC:
             self.set_format(FORMAT_YOLO)
@@ -559,7 +559,7 @@ class MainWindow(QMainWindow, WindowMixin):
         elif self.label_file_format == LabelFileFormat.CREATE_ML:
             self.set_format(FORMAT_COCO)
         elif self.label_file_format == LabelFileFormat.COCO:
-            self.set_format(FORMAT_PASCALVOC)            
+            self.set_format(FORMAT_PASCALVOC)
         else:
             raise ValueError('Unknown label file format.')
         self.set_dirty()
@@ -1074,12 +1074,12 @@ class MainWindow(QMainWindow, WindowMixin):
         # Fix bug: An  index error after select a directory when open a new file.
         unicode_file_path = ustr(file_path)
         unicode_file_path = os.path.abspath(unicode_file_path)
-        
+
         if unicode_file_path and os.path.exists(unicode_file_path):
             if LabelFile.is_label_file(unicode_file_path):
                 try:
                     self.label_file = LabelFile(unicode_file_path)
-                    self.set_format(self.label_file.get_file_format())               
+                    self.set_format(self.label_file.get_file_format())
                     self.load_classes(None, classes=self.label_file.get_category())
                 except Exception as e:
                     self.error_message(u'Error opening file',
@@ -1089,17 +1089,17 @@ class MainWindow(QMainWindow, WindowMixin):
                     self.status("Error reading %s" % unicode_file_path)
                     return False
             else:
-                # Load one image and update the current list of all images already loaded.   
+                # Load one image and update the current list of all images already loaded.
                 try:
                     self.image = read(unicode_file_path, None)
                 except Exception as e:
                     self.error_message(u'Error opening file',
                                    u"<p>Make sure <i>%s</i> is a valid image file. %s" % (os.path.basename(unicode_file_path),e))
                     self.status("Error reading %s" % unicode_file_path)
-                    return False 
+                    return False
 
                 #self.label_file = None
-                self.canvas.verified = False            
+                self.canvas.verified = False
                 if self.file_list_widget.count() == 0 or unicode_file_path not in self.m_img_list:
                     item = QListWidgetItem(unicode_file_path)
                     self.file_list_widget.addItem(item)
@@ -1110,24 +1110,24 @@ class MainWindow(QMainWindow, WindowMixin):
                     self.cur_img_idx = self.m_img_list.index(unicode_file_path)
                 elif self.file_list_widget.count() > 0 and unicode_file_path in self.m_img_list:
                     self.cur_img_idx = self.m_img_list.index(unicode_file_path)
-                self.img_count = len(self.m_img_list)                    
+                self.img_count = len(self.m_img_list)
             current_file_widget_item = self.file_list_widget.item(self.cur_img_idx)
             current_file_widget_item.setSelected(True)
             self.status("Loaded %s" % os.path.basename(unicode_file_path))
             self.file_path = unicode_file_path
-            self.canvas.load_pixmap(QPixmap.fromImage(self.image)) 
+            self.canvas.load_pixmap(QPixmap.fromImage(self.image))
             if self.label_file:
-                self.load_labels(self.label_file.get_annotation(self.m_img_list[self.cur_img_idx]))    
+                self.load_labels(self.label_file.get_annotation(self.m_img_list[self.cur_img_idx]))
             self.set_clean()
             self.canvas.setEnabled(True)
             self.adjust_scale(initial=True)
             self.paint_canvas()
             self.add_recent_file(self.file_path)
             self.toggle_actions(True)
-            #self.show_bounding_box_from_annotation_file(self.file_path)                    
+            #self.show_bounding_box_from_annotation_file(self.file_path)
             counter = self.counter_str()
             self.setWindowTitle(__appname__ + ' ' + self.file_path + ' ' + counter)
-            
+
             # Default : select last item if there is at least one item
             if self.label_list.count():
                 self.label_list.setCurrentItem(self.label_list.item(self.label_list.count() - 1))
@@ -1135,7 +1135,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
             self.canvas.setFocus(True)
             return True
- 
+
         return True
 
     def counter_str(self):
@@ -1364,7 +1364,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.load_file(filename)
 
     def open_next_image(self, _value=False):
-        # Proceeding prev image without dialog if having any label
+        # Proceeding next image without dialog if having any label
         if self.auto_saving.isChecked():
             if self.default_save_dir is not None:
                 if self.dirty is True:
@@ -1390,8 +1390,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
         if filename:
             self.load_file(filename)
-                   
-    def open_file(self):                 
+
+    def open_file(self):
         if not self.may_continue():
             return
         path = os.path.dirname(ustr(self.file_path)) if self.file_path else '.'
@@ -1402,7 +1402,7 @@ class MainWindow(QMainWindow, WindowMixin):
         filename = QFileDialog.getOpenFileName(self, '%s - Choose a label file' % __appname__, path, filters)
         if all(filename):
             if isinstance(filename, (tuple, list)):
-                filename = filename[0]           
+                filename = filename[0]
                 self.load_file(filename)
                 return True
             else:
@@ -1615,7 +1615,7 @@ def inverted(color):
 def read(filename, default=None):
     reader = QImageReader(filename)
     # It is not clear why this property was originally enabled
-    # reader.setAutoTransform(True) 
+    # reader.setAutoTransform(True)
     img = reader.read()
     if img.isNull():
         # Convert QString to python string
