@@ -34,7 +34,7 @@ class Shape(object):
     vertex_fill_color = DEFAULT_VERTEX_FILL_COLOR
     h_vertex_fill_color = DEFAULT_HVERTEX_FILL_COLOR
     point_type = P_ROUND
-    point_size = 8
+    point_size = 16
     scale = 1.0
     label_font_size = 8
 
@@ -153,10 +153,13 @@ class Shape(object):
             assert False, "unsupported vertex shape"
 
     def nearest_vertex(self, point, epsilon):
+        index = None
         for i, p in enumerate(self.points):
-            if distance(p - point) <= epsilon:
-                return i
-        return None
+            dist = distance(p - point)
+            if dist <= epsilon:
+                index = i
+                epsilon = dist
+        return index
 
     def contains_point(self, point):
         return self.make_path().contains(point)

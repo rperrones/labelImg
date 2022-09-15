@@ -6,7 +6,10 @@ try:
 except ImportError:
     from PyQt4.QtGui import QImage
 
-from base64 import b64encode, b64decode
+import os.path
+from enum import Enum
+
+from libs.create_ml_io import CreateMLWriter
 from libs.pascal_voc_io import PascalVocWriter
 from libs.yolo_io import YOLOWriter, TXT_EXT
 from libs.pascal_voc_io import XML_EXT
@@ -36,10 +39,10 @@ class AnnotationFile():
         self.filepath = filepath
         self.file_extension = Path(filepath).suffix
         self.path = Path(filepath).parent
-    
+
     def save(self, annotation):
         pass
-    
+
     def read(self, image_name=None, image_id=None, category_id=None):
         pass
 
@@ -48,7 +51,7 @@ class XMLFile(AnnotationFile):
 
 class YOLOFile(AnnotationFile):
     pass
-        
+
 
 class JSONFile(AnnotationFile):
     def __init__(self, filepath):
@@ -56,14 +59,14 @@ class JSONFile(AnnotationFile):
 
         with open(self.filepath, 'r') as file:
             input_data = file.read()
-        self.dataset = json.loads(input_data) 
+        self.dataset = json.loads(input_data)
         if self.__is_coco_format__():
             self.json_file = COCOFile(self.dataset)
         elif self.__is_createml_format__():
             self.json_file = CreateMLFile(self.dataset)
         else:
-            self.json_format = None    
-    
+            self.json_format = None
+
     def __is_coco_format__(self):
         coco_count = 0
         coco_annotation_count = 0
@@ -78,14 +81,14 @@ class JSONFile(AnnotationFile):
         if coco_count == len(COCO_BASIC_FORMAT_OBJD) and coco_annotation_count == len(COCO_ANNOTATION_FORMAT):
             return True
         else:
-            return False        
-        
+            return False
+
     def __is_createml_format__(self):
         return False
-    
+
     def get_json_file(self):
         return self.json_file
-       
+
 class COCOFile():
     def __init__(self, dataset):
         self.dataset = dataset
@@ -95,9 +98,9 @@ class COCOFile():
         try:
             self.__current_json_file__ = CocoWriter(self.dataset)
         except Exception:
-            raise ValueError('This file does not have a COCO basic format')      
-              
-        
+            raise ValueError('This file does not have a COCO basic format')
+
+
     def get_image_annotation(self, image_name=None, image_id=None):
         if image_name:
             img_id = self.__current_json_file__.get_image_id(os.path.basename(image_name))
@@ -114,7 +117,7 @@ class COCOFile():
                             self.__current_category_id__.append(each.get(COCO_ANNOTATION_FORMAT[2]))
                     return annotation
                 else:
-                    return None  
+                    return None
         elif image_id:
             return None
     def get_category_annotation(self, id=None):
@@ -122,7 +125,7 @@ class COCOFile():
             return self.__current_json_file__.loadCats(id)
         else:
             return self.__current_json_file__.loadCats()
-        
+
     def save(self, annotation):
         pass
 
@@ -130,7 +133,7 @@ class CreateMLFile():
     def __init__(self, dataset):
         pass
 
-        
+
 class LabelFile(object):
     # It might be changed as window creates. By default, using XML ext
     # suffix = '.lif'
@@ -144,7 +147,7 @@ class LabelFile(object):
         if filename and Path(filename).suffix == LabelFile.suffix[1]:
             json = JSONFile(filename)
             self.json_file = json.get_json_file()
-            
+
 
     def upadte_label_file(self, filename):
         self.__init__(filename)
@@ -161,6 +164,7 @@ class LabelFile(object):
                                 image_shape, shapes, filename, local_img_path=image_path)
         writer.verified = self.verified
         writer.write()
+        return
 
 
     def save_pascal_voc_format(self, filename, shapes, image_path, image_data,
@@ -261,16 +265,16 @@ class LabelFile(object):
         if file_suffix in LabelFile.suffix:
             return True
         else:
-            return False   
-        
-    @staticmethod  
+            return False
+
+    @staticmethod
     def is_json_file(filename):
         file_suffix = os.path.splitext(filename)[1].lower()
         if file_suffix == LabelFile.suffix[1]:
             return True
         else:
             return False
-        
+
     @staticmethod
     def convert_points_to_bnd_box(points):
         x_min = float('inf')
@@ -296,8 +300,8 @@ class LabelFile(object):
             y_min = 1
         '''
         return int(x_min), int(y_min), int(x_max), int(y_max)
-    
-    
+
+
     def get_annotation(self, image_filename):
         if isinstance(self.json_file, COCOFile):
             shapes = []
@@ -309,11 +313,11 @@ class LabelFile(object):
                     y_max = y_min + height
                     label_obj = self.json_file.get_category_annotation(id=annotation.get(COCO_ANNOTATION_FORMAT[2]))[0]
                     label = label_obj.get(COCO_CATEGORY_FORMAT[1])
-                    points = [(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)]       
+                    points = [(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)]
                     shapes.append((label, points, None, None, False))
             return shapes
-            
-            
+
+
     def get_category(self):
         if isinstance(self.json_file, COCOFile):
             cats = self.json_file.get_category_annotation()
@@ -321,7 +325,7 @@ class LabelFile(object):
             for cat in cats:
                 c.append(cat.get(COCO_CATEGORY_FORMAT[1]))
             return c
-            
+
     def get_file_format(self):
         if isinstance(self.json_file, COCOFile):
             return FORMAT_COCO

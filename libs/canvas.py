@@ -23,6 +23,7 @@ CURSOR_GRAB = Qt.OpenHandCursor
 
 class Canvas(QWidget):
     zoomRequest = pyqtSignal(int)
+    lightRequest = pyqtSignal(int)
     scrollRequest = pyqtSignal(int, int)
     newShape = pyqtSignal()
     selectionChanged = pyqtSignal(bool)
@@ -31,7 +32,7 @@ class Canvas(QWidget):
 
     CREATE, EDIT = list(range(2))
 
-    epsilon = 11.0
+    epsilon = 24.0
 
     def __init__(self, *args, **kwargs):
         super(Canvas, self).__init__(*args, **kwargs)
@@ -47,6 +48,7 @@ class Canvas(QWidget):
         self.prev_point = QPointF()
         self.offsets = QPointF(), QPointF()
         self.scale = 1.0
+        self.overlay_color = None
         self.label_font_size = 8
         self.pixmap = QPixmap()
         self.visible = {}
@@ -202,10 +204,9 @@ class Canvas(QWidget):
                         'Width: %d, Height: %d / X: %d; Y: %d' % (current_width, current_height, pos.x(), pos.y()))
             else:
                 # pan
-                delta_x = pos.x() - self.pan_initial_pos.x()
-                delta_y = pos.y() - self.pan_initial_pos.y()
-                self.scrollRequest.emit(delta_x, Qt.Horizontal)
-                self.scrollRequest.emit(delta_y, Qt.Vertical)
+                delta = ev.pos() - self.pan_initial_pos
+                self.scrollRequest.emit(delta.x(), Qt.Horizontal)
+                self.scrollRequest.emit(delta.y(), Qt.Vertical)
                 self.update()
             return
 
@@ -214,7 +215,8 @@ class Canvas(QWidget):
         # - Highlight vertex
         # Update shape/vertex fill and tooltip value accordingly.
         self.setToolTip("Image")
-        for shape in reversed([s for s in self.shapes if self.isVisible(s)]):
+        priority_list = self.shapes + ([self.selected_shape] if self.selected_shape else [])
+        for shape in reversed([s for s in priority_list if self.isVisible(s)]):
             # Look for a nearby vertex to highlight. If that fails,
             # check if we happen to be inside a shape.
             index = shape.nearest_vertex(pos, self.epsilon)
@@ -266,7 +268,7 @@ class Canvas(QWidget):
                 if selection is None:
                     # pan
                     QApplication.setOverrideCursor(QCursor(Qt.OpenHandCursor))
-                    self.pan_initial_pos = pos
+                    self.pan_initial_pos = ev.pos()
 
         elif ev.button() == Qt.RightButton and self.editing():
             self.select_shape_point(pos)
@@ -503,7 +505,15 @@ class Canvas(QWidget):
         p.scale(self.scale, self.scale)
         p.translate(self.offset_to_center())
 
-        p.drawPixmap(0, 0, self.pixmap)
+        temp = self.pixmap
+        if self.overlay_color:
+            temp = QPixmap(self.pixmap)
+            painter = QPainter(temp)
+            painter.setCompositionMode(painter.CompositionMode_Overlay)
+            painter.fillRect(temp.rect(), self.overlay_color)
+            painter.end()
+
+        p.drawPixmap(0, 0, temp)
         Shape.scale = self.scale
         Shape.label_font_size = self.label_font_size
         for shape in self.shapes:
@@ -607,7 +617,9 @@ class Canvas(QWidget):
             v_delta = delta.y()
 
         mods = ev.modifiers()
-        if Qt.ControlModifier == int(mods) and v_delta:
+        if int(Qt.ControlModifier) | int(Qt.ShiftModifier) == int(mods) and v_delta:
+            self.lightRequest.emit(v_delta)
+        elif Qt.ControlModifier == int(mods) and v_delta:
             self.zoomRequest.emit(v_delta)
         else:
             v_delta and self.scrollRequest.emit(v_delta, Qt.Vertical)
@@ -724,6 +736,10 @@ class Canvas(QWidget):
         QApplication.restoreOverrideCursor()
 
     def reset_state(self):
+        self.de_select_shape()
+        self.un_highlight()
+        self.selected_shape_copy = None
+
         self.restore_cursor()
         self.pixmap = None
         self.update()
