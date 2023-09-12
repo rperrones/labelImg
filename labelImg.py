@@ -1480,10 +1480,9 @@ class MainWindow(QMainWindow, WindowMixin):
         if all(filename):
             if isinstance(filename, (tuple, list)):
                 filename = filename[0]
-                self.load_file(filename)
-                return True
-            else:
-                return False
+            self.cur_img_idx = 0
+            self.img_count = 1
+            self.load_file(filename)
 
     def save_file(self, _value=False):
         if self.default_save_dir is not None and len(ustr(self.default_save_dir)):
